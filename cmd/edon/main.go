@@ -32,7 +32,8 @@ func main() {
 	if err := run(); err != nil {
 		if err != runtime.ErrExit && err != runtime.ErrInterrupt {
 			color.Red("Error: %v", err)
-		}
+		} 
+
 		os.Exit(1)
 	}
 }

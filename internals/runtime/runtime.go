@@ -29,18 +29,25 @@ var (
 )
 
 func New() (*Runtime, error) {
-	jsRuntime := quickjs.NewRuntime()
-	context := jsRuntime.NewContext()
+	fmt.Println("Creating new runtime...")
+	rt := quickjs.NewRuntime()
+	fmt.Println("Creating new context...")
+	ctx := rt.NewContext()
 
 	r := &Runtime{
-		jsRuntime: &jsRuntime,
-		context:   context,
+		jsRuntime: &rt,
+		context:   ctx,
 	}
 
 	// Initialize built-in modules
+	fmt.Println("Initializing built-in modules...")
 	if err := r.initializeBuiltins(); err != nil {
+		fmt.Printf("Failed to initialize builtins: %v\n", err)
+		ctx.Close()
+		rt.Close()
 		return nil, fmt.Errorf("failed to initialize builtins: %w", err)
 	}
+	fmt.Println("Runtime initialization complete")
 
 	return r, nil
 }
@@ -54,8 +61,14 @@ func (r *Runtime) initializeBuiltins() error {
 }
 
 func (r *Runtime) Eval(script string) error {
-	_, err := r.context.Eval(script)
-	return err
+	result, err := r.context.Eval(script)
+	if err != nil {
+		return err
+	}
+	if !result.IsUndefined() {
+		fmt.Println(result.String())
+	}
+	return nil
 }
 
 func (r *Runtime) ExecuteFile(filename string) error {
@@ -64,16 +77,29 @@ func (r *Runtime) ExecuteFile(filename string) error {
 		return fmt.Errorf("failed to read file: %w", err)
 	}
 
-	_, err = r.context.Eval(string(data))
-	return err
+	result, err := r.context.Eval(string(data))
+	if err != nil {
+		return err
+	}
+	if !result.IsUndefined() {
+		fmt.Println(result.String())
+	}
+	return nil
 }
 
 func (r *Runtime) Close() {
-	r.context.Close()
-	r.jsRuntime.Close()
+	if r.context != nil {
+		r.context.Close()
+		r.context = nil
+	}
+	if r.jsRuntime != nil {
+		r.jsRuntime.Close()
+		r.jsRuntime = nil
+	}
 }
 
 func (r *Runtime) StartREPL() error {
+	fmt.Println("Starting REPL...")
 	rl, err := readline.NewEx(&readline.Config{
 		Prompt:            prompt,
 		HistoryFile:       "/tmp/edon_history",
@@ -81,6 +107,12 @@ func (r *Runtime) StartREPL() error {
 		EOFPrompt:         "exit",
 		HistorySearchFold: true,
 		HistoryLimit:      500,
+		FuncFilterInputRune: func(r rune) (rune, bool) {
+			if r == readline.CharCtrlZ {
+				return r, false
+			}
+			return r, true
+		},
 	})
 
 	if err != nil {
@@ -94,6 +126,7 @@ func (r *Runtime) StartREPL() error {
 	multiline := false
 	var code strings.Builder
 
+	fmt.Println("Entering REPL loop...")
 	for {
 		currentPrompt := prompt
 		if multiline {
@@ -104,6 +137,7 @@ func (r *Runtime) StartREPL() error {
 
 		line, err := rl.Readline()
 		if err != nil {
+			fmt.Printf("Readline error: %v\n", err)
 			if err == readline.ErrInterrupt {
 				if multiline {
 					// Cancel multi-line input
@@ -113,7 +147,8 @@ func (r *Runtime) StartREPL() error {
 				}
 				return ErrInterrupt
 			} else if err == io.EOF {
-				return ErrExit
+				fmt.Println("Exiting...")
+				return nil
 			}
 			return err
 		}
@@ -127,6 +162,7 @@ func (r *Runtime) StartREPL() error {
 		if !multiline {
 			switch line {
 			case ".exit", "exit", "quit":
+				fmt.Println("Exiting...")
 				return nil
 			case ".help", "help":
 				printHelp()
@@ -142,20 +178,24 @@ func (r *Runtime) StartREPL() error {
 		code.WriteString(line)
 		code.WriteString("\n")
 
-		// check if we nned to contine reading more lines
+		// check if we need to continue reading more lines
 		if isIncomplete(line) {
 			multiline = true
 			continue
 		}
+
 		// Execute the code
+		fmt.Printf("Executing code: %s\n", code.String())
 		result, err := r.context.Eval(code.String())
 		if err != nil {
 			color.Red("Error: %v", err)
-		} else if !result.IsUndefined() {
-			// Convert result to string and print
-			val := result.String()
-			if val != "undefined" {
-				color.Green("=> %s", val)
+		} else {
+			if !result.IsUndefined() && !result.IsNull() {
+				// Convert result to string and print
+				str := result.String()
+				if str != "undefined" && str != "" {
+					color.Green("=> %s", str)
+				}
 			}
 		}
 
@@ -222,7 +262,7 @@ func createCompleter() *readline.PrefixCompleter {
 
 // printWelcome prints the REPL welcome message
 func printWelcome() {
-    color.Cyan("Welcome to Edon REPL!")
+    color.Cyan("Welcome to Halo REPL!")
     color.Cyan("Type .help for more information")
     fmt.Println()
 }

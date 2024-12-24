@@ -1,5 +1,5 @@
 # Build variables
-BINARY_NAME=edon
+BINARY_NAME=halo
 VERSION=$(shell git describe --tags --always --dirty)
 COMMIT=$(shell git rev-parse --short HEAD)
 BUILD_DATE=$(shell date -u '+%Y-%m-%d %H:%M:%S')
