@@ -18,14 +18,16 @@ var (
 	showHelp    = flag.Bool("help", false, "Show help information")
 )
 
-// Version information
-var (
-	version = "dev"
-	commit  = "none"
-	date    = "unknown"
-)
-
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "install" {
+		installCmd.Parse(os.Args[2:])
+		if err := handleInstall(); err != nil {
+			color.Red("Error: %v", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	flag.Usage = printHelp
 	flag.Parse()
 
@@ -37,6 +39,13 @@ func main() {
 		os.Exit(1)
 	}
 }
+
+// Version information
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
 
 func run() error {
 	// Handle version flag
