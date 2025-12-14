@@ -9,6 +9,7 @@ import (
 	"github.com/buke/quickjs-go"
 	"github.com/chzyer/readline"
 	"github.com/fatih/color"
+	"github.com/katungi/edon/internal/errors"
 	"github.com/katungi/edon/internal/modules/console"
 )
 
@@ -22,10 +23,10 @@ const (
 	multiPrompt = "..."
 )
 
-// REPL specific errors
+// REPL specific errors (re-exported from errors package)
 var (
-	ErrInterrupt = fmt.Errorf("interrupted")
-	ErrExit      = fmt.Errorf("exit")
+	ErrInterrupt = errors.ErrInterrupt
+	ErrExit      = errors.ErrExit
 )
 
 func New() (*Runtime, error) {
@@ -39,10 +40,9 @@ func New() (*Runtime, error) {
 
 	// Initialize built-in modules
 	if err := r.initializeBuiltins(); err != nil {
-		fmt.Printf("Failed to initialize builtins: %v\n", err)
 		ctx.Close()
 		rt.Close()
-		return nil, fmt.Errorf("failed to initialize builtins: %w", err)
+		return nil, errors.Wrap(errors.ErrBuiltinInit, err.Error())
 	}
 	return r, nil
 }
@@ -50,7 +50,7 @@ func New() (*Runtime, error) {
 func (r *Runtime) initializeBuiltins() error {
 	// Add console module
 	if err := console.Init(r.context); err != nil {
-		return fmt.Errorf("failed to initialize console: %w", err)
+		return errors.Wrap(errors.ErrConsoleInit, err.Error())
 	}
 	return nil
 }
@@ -69,7 +69,7 @@ func (r *Runtime) Eval(script string) error {
 func (r *Runtime) ExecuteFile(filename string) error {
 	data, err := os.ReadFile(filename)
 	if err != nil {
-		return fmt.Errorf("failed to read file: %w", err)
+		return errors.Wrap(errors.ErrFileRead, err.Error())
 	}
 
 	result := r.context.Eval(string(data))
@@ -111,7 +111,7 @@ func (r *Runtime) StartREPL() error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("failed to create readline instance: %w", err)
+		return errors.Wrap(errors.ErrRuntimeInit, "failed to create readline instance")
 	}
 	defer rl.Close()
 
