@@ -9,14 +9,21 @@ LD_FLAGS='-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(BUI
 GOFILES=$(shell find . -type f -name '*.go')
 
 # Make targets
-.PHONY: all build clean run test help
+.PHONY: all build build-web build-all clean run test help
 
 all: clean build
 
 build:
 	@echo "Building $(BINARY_NAME)..."
 	@mkdir -p bin/
-	@go build -o bin/$(BINARY_NAME) ./cmd/edon
+	@go build -ldflags $(LD_FLAGS) -o bin/$(BINARY_NAME) ./cmd/edon
+
+build-web:
+	@echo "Building web server..."
+	@mkdir -p bin/
+	@go build -o bin/$(BINARY_NAME)-web ./cmd/web
+
+build-all: build build-web
 
 clean:
 	@echo "Cleaning..."

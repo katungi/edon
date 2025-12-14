@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/katungi/edon/internals/modules/loader"
+	"github.com/katungi/edon/internal/modules/loader"
 )
 
 var (

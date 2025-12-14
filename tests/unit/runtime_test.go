@@ -3,7 +3,7 @@ package unit
 import (
 	"testing"
 
-	"github.com/katungi/edon/internals/runtime"
+	"github.com/katungi/edon/internal/runtime"
 )
 
 func TestBasicExecution(t *testing.T) {
@@ -32,15 +32,15 @@ func TestBasicExecution(t *testing.T) {
 	for _, tt := range test {
 		t.Run(tt.name, func(t *testing.T) {
 			rt, err := runtime.New()
-            if err != nil {
-                t.Fatalf("Failed to create runtime: %v", err)
-            }
-            defer rt.Close()
+			if err != nil {
+				t.Fatalf("Failed to create runtime: %v", err)
+			}
+			defer rt.Close()
 
-            err = rt.Eval(tt.script)
-            if (err != nil) != tt.wantErr {
-                t.Errorf("Eval() error = %v, wantErr %v", err, tt.wantErr)
-            }
+			err = rt.Eval(tt.script)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Eval() error = %v, wantErr %v", err, tt.wantErr)
+			}
 
 		})
 	}

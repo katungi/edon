@@ -8,7 +8,7 @@ import (
 	"runtime/debug"
 
 	"github.com/fatih/color"
-	"github.com/katungi/edon/internals/runtime"
+	"github.com/katungi/edon/internal/runtime"
 )
 
 var (
@@ -44,7 +44,7 @@ func main() {
 	if err := run(); err != nil {
 		if err != runtime.ErrExit && err != runtime.ErrInterrupt {
 			color.Red("Error: %v", err)
-		} 
+		}
 
 		os.Exit(1)
 	}
