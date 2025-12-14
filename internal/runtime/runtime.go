@@ -141,7 +141,9 @@ func (r *Runtime) StartREPL() error {
 					continue
 				}
 				return ErrInterrupt
-			} else if err == io.EOF {
+			}
+			// #2: Avoid unnecessary else after return
+			if err == io.EOF {
 				fmt.Println("Exiting...")
 				return nil
 			}
@@ -170,8 +172,8 @@ func (r *Runtime) StartREPL() error {
 		}
 
 		// Append the line to our code buffer
-		code.WriteString(line)
-		code.WriteString("\n")
+		_, _ = code.WriteString(line)
+		_, _ = code.WriteString("\n")
 
 		// check if we need to continue reading more lines
 		if isIncomplete(line) {
@@ -234,24 +236,6 @@ func isIncomplete(line string) bool {
 	}
 
 	return brackets > 0 || braces > 0 || parens > 0
-}
-
-// createCompleter creates an autocomplete handler
-func createCompleter() *readline.PrefixCompleter {
-	return readline.NewPrefixCompleter(
-		readline.PcItem("console.log"),
-		readline.PcItem("let"),
-		readline.PcItem("const"),
-		readline.PcItem("function"),
-		readline.PcItem("return"),
-		readline.PcItem("if"),
-		readline.PcItem("else"),
-		readline.PcItem("for"),
-		readline.PcItem("while"),
-		readline.PcItem(".help"),
-		readline.PcItem(".exit"),
-		readline.PcItem(".clear"),
-	)
 }
 
 // printWelcome prints the REPL welcome message

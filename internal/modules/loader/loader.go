@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/katungi/edon/internal/errors"
 )
@@ -27,14 +28,19 @@ type Module struct {
 
 // ModuleLoader handles the loading of modules from various sources
 type ModuleLoader struct {
-	cache *ModuleCache
+	cache      *ModuleCache
+	httpClient *http.Client
 }
 
 // NewModuleLoader creates a new instance of ModuleLoader
 func NewModuleLoader() *ModuleLoader {
+	// #81: Don't use default HTTP client - configure timeouts
 	return &ModuleLoader{
 		cache: &ModuleCache{
 			modules: make(map[string]*Module),
+		},
+		httpClient: &http.Client{
+			Timeout: 30 * time.Second,
 		},
 	}
 }
@@ -114,7 +120,7 @@ func (l *ModuleLoader) loadCDNModule(ctx context.Context, url string) (*Module, 
 		return nil, errors.Wrap(errors.ErrModuleNotFound, err.Error())
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := l.httpClient.Do(req)
 	if err != nil {
 		return nil, errors.Wrap(errors.ErrModuleNotFound, err.Error())
 	}
