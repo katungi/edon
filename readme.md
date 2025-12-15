@@ -1,25 +1,82 @@
-# HALO Runtime
+# Halo Runtime
 
-Basic implementation of a Deno like runtime in GO based on QuickJS
+A Deno-like JavaScript runtime built in Go, powered by QuickJS.
 
-Where are we now?
+## Project Structure
 
-- we just implemented the runtime, and the repl
-
-What are we working on next?
-
-- Implement a module cache-ing system
-- Implement the module parsing system to parse url imports
-- Implement the module resolution system to resolve url imports
-- Implement the module loading system to load modules
-
-How to get started?
-
-Currently we have a REPL that is pretty much ready to go, but we need to
-implement the module loading system first for it to work.
-
-```bash
-go run cmd/edon/main.go
+```text
+edon/
+├── cmd/                    # Application entry points
+│   ├── edon/               # Main CLI (REPL, file execution, package management)
+│   │   ├── main.go
+│   │   ├── init.go
+│   │   └── npm.go
+│   ├── runtime/            # Standalone runtime CLI
+│   │   └── main.go
+│   └── web/                # Web-based REPL server
+│       ├── main.go
+│       └── static/
+├── internal/               # Private application code
+│   ├── modules/
+│   │   ├── console/        # Console API implementation
+│   │   └── loader/         # Module loading, NPM, resolution
+│   ├── runtime/            # Core JS runtime
+│   └── server/             # HTTP server for web REPL
+├── tests/
+│   ├── integration/
+│   ├── unit/
+│   └── fixtures/
+├── Dockerfile
+├── makefile
+└── go.mod
 ```
 
-That should run the repl and allow you to run code in the repl.
+## Getting Started
+
+### Build
+
+```bash
+make build
+make build-web
+make build-all
+```
+
+### Run
+
+```bash
+# Main CLI
+./bin/halo                              # Start REPL
+./bin/halo script.js                    # Execute a file
+./bin/halo -eval "console.log('Hi!')"   # Evaluate inline code
+./bin/halo init                         # Initialize a project
+./bin/halo install lodash               # Install NPM package
+
+./bin/halo-runtime script.js
+
+./bin/halo-web
+```
+
+### Development
+
+```bash
+go run ./cmd/edon
+
+go run ./cmd/web
+
+make test
+```
+
+## Features
+
+- **REPL** - Interactive JavaScript shell with history and autocomplete
+- **File Execution** - Run `.js` files directly
+- **Web REPL** - Browser-based JavaScript playground
+- **NPM Support** - Install and use NPM packages
+- **Module Loading** - Support for local, CDN, and NPM imports
+
+## Roadmap
+
+- [ ] Module caching system
+- [ ] URL import parsing
+- [ ] Module resolution for URL imports
+- [ ] JSR registry support

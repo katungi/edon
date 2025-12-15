@@ -3,13 +3,14 @@ package runtime
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/buke/quickjs-go"
 	"github.com/chzyer/readline"
 	"github.com/fatih/color"
-	"github.com/katungi/edon/internals/modules/console"
+	"github.com/katungi/edon/internal/errors"
+	"github.com/katungi/edon/internal/modules/console"
 )
 
 type Runtime struct {
@@ -22,10 +23,10 @@ const (
 	multiPrompt = "..."
 )
 
-// REPL specific errors
+// REPL specific errors (re-exported from errors package)
 var (
-	ErrInterrupt = fmt.Errorf("interrupted")
-	ErrExit      = fmt.Errorf("exit")
+	ErrInterrupt = errors.ErrInterrupt
+	ErrExit      = errors.ErrExit
 )
 
 func New() (*Runtime, error) {
@@ -33,16 +34,15 @@ func New() (*Runtime, error) {
 	ctx := rt.NewContext()
 
 	r := &Runtime{
-		jsRuntime: &rt,
+		jsRuntime: rt,
 		context:   ctx,
 	}
 
 	// Initialize built-in modules
 	if err := r.initializeBuiltins(); err != nil {
-		fmt.Printf("Failed to initialize builtins: %v\n", err)
 		ctx.Close()
 		rt.Close()
-		return nil, fmt.Errorf("failed to initialize builtins: %w", err)
+		return nil, errors.WrapWith(errors.ErrBuiltinInit, err, "initialize builtins")
 	}
 	return r, nil
 }
@@ -50,15 +50,15 @@ func New() (*Runtime, error) {
 func (r *Runtime) initializeBuiltins() error {
 	// Add console module
 	if err := console.Init(r.context); err != nil {
-		return fmt.Errorf("failed to initialize console: %w", err)
+		return errors.WrapWith(errors.ErrConsoleInit, err, "console module")
 	}
 	return nil
 }
 
 func (r *Runtime) Eval(script string) error {
-	result, err := r.context.Eval(script)
-	if err != nil {
-		return err
+	result := r.context.Eval(script)
+	if result.IsException() {
+		return fmt.Errorf("%s", result.String())
 	}
 	if !result.IsUndefined() {
 		fmt.Println(result.String())
@@ -67,14 +67,14 @@ func (r *Runtime) Eval(script string) error {
 }
 
 func (r *Runtime) ExecuteFile(filename string) error {
-	data, err := ioutil.ReadFile(filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
-		return fmt.Errorf("failed to read file: %w", err)
+		return errors.WrapWith(errors.ErrFileRead, err, "")
 	}
 
-	result, err := r.context.Eval(string(data))
-	if err != nil {
-		return err
+	result := r.context.Eval(string(data))
+	if result.IsException() {
+		return fmt.Errorf("%s", result.String())
 	}
 	if !result.IsUndefined() {
 		fmt.Println(result.String())
@@ -111,7 +111,7 @@ func (r *Runtime) StartREPL() error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("failed to create readline instance: %w", err)
+		return errors.WrapWith(errors.ErrRuntimeInit, err, "create readline instance")
 	}
 	defer rl.Close()
 
@@ -141,7 +141,9 @@ func (r *Runtime) StartREPL() error {
 					continue
 				}
 				return ErrInterrupt
-			} else if err == io.EOF {
+			}
+			// #2: Avoid unnecessary else after return
+			if err == io.EOF {
 				fmt.Println("Exiting...")
 				return nil
 			}
@@ -170,8 +172,8 @@ func (r *Runtime) StartREPL() error {
 		}
 
 		// Append the line to our code buffer
-		code.WriteString(line)
-		code.WriteString("\n")
+		_, _ = code.WriteString(line)
+		_, _ = code.WriteString("\n")
 
 		// check if we need to continue reading more lines
 		if isIncomplete(line) {
@@ -181,9 +183,9 @@ func (r *Runtime) StartREPL() error {
 
 		// Execute the code
 		fmt.Printf("Executing code: %s\n", code.String())
-		result, err := r.context.Eval(code.String())
-		if err != nil {
-			color.Red("Error: %v", err)
+		result := r.context.Eval(code.String())
+		if result.IsException() {
+			color.Red("Error: %v", result.String())
 		} else {
 			if !result.IsUndefined() && !result.IsNull() {
 				// Convert result to string and print
@@ -234,24 +236,6 @@ func isIncomplete(line string) bool {
 	}
 
 	return brackets > 0 || braces > 0 || parens > 0
-}
-
-// createCompleter creates an autocomplete handler
-func createCompleter() *readline.PrefixCompleter {
-	return readline.NewPrefixCompleter(
-		readline.PcItem("console.log"),
-		readline.PcItem("let"),
-		readline.PcItem("const"),
-		readline.PcItem("function"),
-		readline.PcItem("return"),
-		readline.PcItem("if"),
-		readline.PcItem("else"),
-		readline.PcItem("for"),
-		readline.PcItem("while"),
-		readline.PcItem(".help"),
-		readline.PcItem(".exit"),
-		readline.PcItem(".clear"),
-	)
 }
 
 // printWelcome prints the REPL welcome message

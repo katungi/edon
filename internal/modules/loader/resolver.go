@@ -1,8 +1,9 @@
 package loader
 
 import (
-	"fmt"
 	"sync"
+
+	"github.com/katungi/edon/internal/errors"
 )
 
 // DependencyGraph represents a directed graph of module dependencies
@@ -25,7 +26,7 @@ func (g *DependencyGraph) AddDependency(parent, child string) error {
 
 	// Check for circular dependency before adding
 	if g.wouldCreateCycle(parent, child, make(map[string]bool)) {
-		return fmt.Errorf("circular dependency detected: %s -> %s", parent, child)
+		return errors.ErrCircularDependency
 	}
 
 	// Add the dependency

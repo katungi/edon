@@ -3,32 +3,39 @@ package loader
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
+
+	"github.com/katungi/edon/internal/errors"
 )
 
 // NPMPackageManager handles NPM package installation and caching
 type NPMPackageManager struct {
-	cacheDir string
+	cacheDir   string
+	httpClient *http.Client
 }
 
 // NewNPMPackageManager creates a new instance of NPMPackageManager
 func NewNPMPackageManager() (*NPMPackageManager, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get user home directory: %v", err)
+		return nil, errors.Wrap(errors.ErrCacheDir, err.Error())
 	}
 
 	cacheDir := filepath.Join(homeDir, ".edon", "npm-cache")
 	if err := os.MkdirAll(cacheDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create cache directory: %v", err)
+		return nil, errors.Wrap(errors.ErrCacheDir, err.Error())
 	}
 
+	// #81: Don't use default HTTP client - configure timeouts
 	return &NPMPackageManager{
 		cacheDir: cacheDir,
+		httpClient: &http.Client{
+			Timeout: 30 * time.Second,
+		},
 	}, nil
 }
 
@@ -50,27 +57,32 @@ func (pm *NPMPackageManager) InstallPackage(ctx context.Context, packageName str
 
 	// Fetch package metadata from NPM registry
 	registryURL := fmt.Sprintf("https://registry.npmjs.org/%s/%s", name, version)
-	resp, err := http.Get(registryURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, registryURL, nil)
 	if err != nil {
-		return "", fmt.Errorf("failed to fetch package metadata: %v", err)
+		return "", errors.Wrap(errors.ErrPackageFetch, err.Error())
+	}
+
+	resp, err := pm.httpClient.Do(req)
+	if err != nil {
+		return "", errors.Wrap(errors.ErrPackageFetch, err.Error())
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to fetch package: HTTP %d", resp.StatusCode)
+		return "", errors.ErrPackageNotFound
 	}
 
 	// Create cache directory for package
 	if err := os.MkdirAll(cachePath, 0755); err != nil {
-		return "", fmt.Errorf("failed to create package cache directory: %v", err)
+		return "", errors.Wrap(errors.ErrCacheDir, err.Error())
 	}
 
 	// Download and extract package
 	// TODO: Implement package download and extraction
 	// For now, just create a placeholder file
 	placeholder := filepath.Join(cachePath, "index.js")
-	if err := ioutil.WriteFile(placeholder, []byte("// TODO: Implement package content"), 0644); err != nil {
-		return "", fmt.Errorf("failed to write package file: %v", err)
+	if err := os.WriteFile(placeholder, []byte("// TODO: Implement package content"), 0644); err != nil {
+		return "", errors.Wrap(errors.ErrPackageInstall, err.Error())
 	}
 
 	return cachePath, nil

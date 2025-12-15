@@ -9,14 +9,26 @@ LD_FLAGS='-X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(BUI
 GOFILES=$(shell find . -type f -name '*.go')
 
 # Make targets
-.PHONY: all build clean run test help
+.PHONY: all build build-runtime build-web build-all clean run test help
 
 all: clean build
 
 build:
 	@echo "Building $(BINARY_NAME)..."
 	@mkdir -p bin/
-	@go build -o bin/$(BINARY_NAME) ./cmd/edon
+	@go build -ldflags $(LD_FLAGS) -o bin/$(BINARY_NAME) ./cmd/edon
+
+build-runtime:
+	@echo "Building runtime..."
+	@mkdir -p bin/
+	@go build -o bin/$(BINARY_NAME)-runtime ./cmd/runtime
+
+build-web:
+	@echo "Building web server..."
+	@mkdir -p bin/
+	@go build -o bin/$(BINARY_NAME)-web ./cmd/web
+
+build-all: build build-runtime build-web
 
 clean:
 	@echo "Cleaning..."
@@ -74,10 +86,13 @@ lint:
 
 help:
 	@echo "Available targets:"
-	@echo "  build    - Build the binary"
-	@echo "  clean    - Clean build artifacts"
-	@echo "  run      - Run the binary"
-	@echo "  test     - Run tests"
-	@echo "  dev      - Build and run for development"
-	@echo "  install  - Install binary to GOPATH"
-	@echo "  lint     - Run linter"
+	@echo "  build         - Build the main CLI binary"
+	@echo "  build-runtime - Build the standalone runtime binary"
+	@echo "  build-web     - Build the web server binary"
+	@echo "  build-all     - Build all binaries"
+	@echo "  clean         - Clean build artifacts"
+	@echo "  run           - Run the binary"
+	@echo "  test          - Run tests"
+	@echo "  dev           - Build and run for development"
+	@echo "  install       - Install binary to GOPATH"
+	@echo "  lint          - Run linter"

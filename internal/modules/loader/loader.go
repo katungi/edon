@@ -2,12 +2,15 @@ package loader
 
 import (
 	"context"
-	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
+
+	"github.com/katungi/edon/internal/errors"
 )
 
 // ModuleCache represents a thread-safe cache for loaded modules
@@ -25,14 +28,19 @@ type Module struct {
 
 // ModuleLoader handles the loading of modules from various sources
 type ModuleLoader struct {
-	cache *ModuleCache
+	cache      *ModuleCache
+	httpClient *http.Client
 }
 
 // NewModuleLoader creates a new instance of ModuleLoader
 func NewModuleLoader() *ModuleLoader {
+	// #81: Don't use default HTTP client - configure timeouts
 	return &ModuleLoader{
 		cache: &ModuleCache{
 			modules: make(map[string]*Module),
+		},
+		httpClient: &http.Client{
+			Timeout: 30 * time.Second,
 		},
 	}
 }
@@ -64,7 +72,7 @@ func (l *ModuleLoader) LoadModule(ctx context.Context, urlStr string) (*Module, 
 	case TypeJSR:
 		module, err = l.loadJSRModule(ctx, urlStr)
 	default:
-		return nil, fmt.Errorf("unsupported module type")
+		return nil, errors.ErrUnsupportedModule
 	}
 
 	if err != nil {
@@ -90,12 +98,12 @@ func (l *ModuleLoader) getFromCache(url string) *Module {
 func (l *ModuleLoader) loadLocalModule(path string) (*Module, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve absolute path: %v", err)
+		return nil, errors.Wrap(errors.ErrModuleNotFound, err.Error())
 	}
 
-	content, err := ioutil.ReadFile(absPath)
+	content, err := os.ReadFile(absPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read local file: %v", err)
+		return nil, errors.Wrap(errors.ErrFileRead, err.Error())
 	}
 
 	return &Module{
@@ -109,18 +117,18 @@ func (l *ModuleLoader) loadLocalModule(path string) (*Module, error) {
 func (l *ModuleLoader) loadCDNModule(ctx context.Context, url string) (*Module, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %v", err)
+		return nil, errors.Wrap(errors.ErrModuleNotFound, err.Error())
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := l.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch from CDN: %v", err)
+		return nil, errors.Wrap(errors.ErrModuleNotFound, err.Error())
 	}
 	defer resp.Body.Close()
 
-	content, err := ioutil.ReadAll(resp.Body)
+	content, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %v", err)
+		return nil, errors.Wrap(errors.ErrFileRead, err.Error())
 	}
 
 	return &Module{
@@ -138,20 +146,20 @@ func (l *ModuleLoader) loadNPMModule(ctx context.Context, url string) (*Module, 
 	// Initialize NPM package manager
 	pm, err := NewNPMPackageManager()
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize NPM package manager: %v", err)
+		return nil, errors.Wrap(errors.ErrPackageInstall, err.Error())
 	}
 
 	// Install the package
 	packagePath, err := pm.InstallPackage(ctx, packageName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to install NPM package: %v", err)
+		return nil, errors.Wrap(errors.ErrPackageInstall, err.Error())
 	}
 
 	// Read the package's main file
 	mainFile := filepath.Join(packagePath, "index.js")
-	content, err := ioutil.ReadFile(mainFile)
+	content, err := os.ReadFile(mainFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read package file: %v", err)
+		return nil, errors.Wrap(errors.ErrFileRead, err.Error())
 	}
 
 	return &Module{
@@ -164,5 +172,5 @@ func (l *ModuleLoader) loadNPMModule(ctx context.Context, url string) (*Module, 
 // loadJSRModule loads a module from JSR registry
 func (l *ModuleLoader) loadJSRModule(ctx context.Context, url string) (*Module, error) {
 	// TODO: Implement JSR module loading
-	return nil, fmt.Errorf("JSR module loading not implemented yet")
+	return nil, errors.ErrJSRNotImplemented
 }

@@ -1,10 +1,11 @@
 package loader
 
 import (
-	"fmt"
 	"net/url"
 	"path/filepath"
 	"strings"
+
+	"github.com/katungi/edon/internal/errors"
 )
 
 type PackageType string
@@ -27,7 +28,7 @@ func ValidateURL(urlStr string) ValidationResult {
 	if urlStr == "" {
 		return ValidationResult{
 			IsValid: false,
-			Error:   fmt.Errorf("empty URL provided"),
+			Error:   errors.ErrEmptyURL,
 		}
 	}
 
@@ -59,7 +60,7 @@ func ValidateURL(urlStr string) ValidationResult {
 	if err != nil {
 		return ValidationResult{
 			IsValid: false,
-			Error:   fmt.Errorf("invalid URL format: %v", err),
+			Error:   errors.Wrap(errors.ErrInvalidURL, err.Error()),
 		}
 	}
 
@@ -73,7 +74,7 @@ func ValidateURL(urlStr string) ValidationResult {
 
 	return ValidationResult{
 		IsValid: false,
-		Error:   fmt.Errorf("URL does not match any supported package type"),
+		Error:   errors.ErrUnsupportedModule,
 	}
 }
 

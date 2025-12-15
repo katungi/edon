@@ -2,6 +2,7 @@ package console
 
 import (
 	"fmt"
+
 	"github.com/buke/quickjs-go"
 )
 
@@ -10,7 +11,7 @@ func Init(ctx *quickjs.Context) error {
 	console := ctx.Object()
 
 	// Implement console.log
-	log := ctx.Function(func(ctx *quickjs.Context, this quickjs.Value, args []quickjs.Value) quickjs.Value {
+	log := ctx.Function(func(ctx *quickjs.Context, this *quickjs.Value, args []*quickjs.Value) *quickjs.Value {
 		for i, arg := range args {
 			if i > 0 {
 				fmt.Print(" ")
